@@ -4,6 +4,9 @@
   "service": "workspace",
   "workspaceFolder": "/workspaces/telemetry-db",
   "remoteUser": "vscode",
+  "containerEnv": {
+    "DATABASE_URL": "postgres://telemetry:telemetry@db:5432/telemetry?sslmode=disable"
+  },
   "customizations": {
     "vscode": {
       "settings": {
