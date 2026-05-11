@@ -28,8 +28,6 @@ WORKDIR /app
 COPY atlas.hcl schema.hcl Makefile ./
 COPY migrations ./migrations
 
-ENV DATABASE_URL=postgres://telemetry:telemetry@db:5432/telemetry?sslmode=disable
-
 RUN atlas version
 
 CMD ["make", "db-apply"]

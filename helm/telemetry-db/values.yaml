@@ -1,0 +1,61 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# telemetry-db Helm values
+# ──────────────────────────────────────────────────────────────────────────────
+# Helm installs into the namespace you pass with -n (e.g. -n telemetry).
+# Set createNamespace: true only if the chart itself should create the NS.
+
+createNamespace: false
+
+# Override the generated "<release>-<chart>" base name.  Useful when the
+# release name already contains the chart name (e.g. "telemetry" + "telemetry-db"
+# would produce "telemetry-telemetry-db"; set fullnameOverride to shorten it).
+nameOverride: ""
+fullnameOverride: "telemetry-db"
+
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+
+postgresql:
+  image:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+
+  # Credentials injected into a Kubernetes Secret.
+  # For production, supply values via --set or -f secrets.yaml (do NOT commit
+  # real passwords to version control).
+  auth:
+    username: telemetry
+    password: telemetry
+    database: telemetry
+
+  persistence:
+    enabled: true
+    # storageClass: ""   — omit or leave commented to use the cluster default.
+    # Set explicitly (e.g. "standard", "gp3") to pin a specific class.
+    storageClass: ""
+    size: 10Gi
+
+  # CPU / memory requests and limits for the Postgres container.
+  resources: {}
+  #   requests:
+  #     cpu: 250m
+  #     memory: 256Mi
+  #   limits:
+  #     cpu: "1"
+  #     memory: 1Gi
+
+# ── Atlas Migrate Job ─────────────────────────────────────────────────────────
+
+migrate:
+  enabled: true
+
+  image:
+    repository: telemetry-db
+    tag: latest
+    # kind workflow: docker build -t telemetry-db:latest . && kind load docker-image telemetry-db:latest
+    # Use Never so the node uses the image you loaded; registry images need IfNotPresent/Always.
+    pullPolicy: Never
+
+  # The Job is a Helm post-install / post-upgrade hook (see migrate-job.yaml).
+  # It runs `make db-apply` (Atlas migrate apply) then exits.
+  resources: {}

@@ -1,0 +1,68 @@
+{{- if .Values.migrate.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "telemetry-db.fullname" . }}-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "telemetry-db.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "telemetry-db.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h "$PGHOST" -p 5432 -U "$PGUSER" -d "$PGDATABASE"; do
+                echo "waiting for PostgreSQL at $PGHOST..."
+                sleep 3
+              done
+              echo "PostgreSQL is accepting connections."
+          env:
+            - name: PGHOST
+              value: {{ include "telemetry-db.postgresServiceName" . | quote }}
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "telemetry-db.fullname" . }}-postgres
+                  key: postgres-user
+            - name: PGDATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "telemetry-db.fullname" . }}-postgres
+                  key: postgres-db
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "telemetry-db.fullname" . }}-postgres
+                  key: postgres-password
+      containers:
+        - name: migrate
+          image: "{{ .Values.migrate.image.repository }}:{{ .Values.migrate.image.tag }}"
+          imagePullPolicy: {{ .Values.migrate.image.pullPolicy }}
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "telemetry-db.fullname" . }}-postgres
+                  key: database-url
+          {{- with .Values.migrate.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

@@ -1,0 +1,19 @@
+Release: {{ .Release.Name }} (namespace {{ .Release.Namespace }})
+
+PostgreSQL (in-cluster DNS):
+  {{ include "telemetry-db.postgresServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local:5432
+
+Port-forward from your machine:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "telemetry-db.postgresServiceName" . }} 5433:5432
+
+Migrations run automatically via a Helm hook Job after install/upgrade (Atlas / make db-apply).
+
+kind workflow:
+  1. From repository root: docker build -t telemetry-db:latest .
+  2. kind load docker-image telemetry-db:latest
+  3. helm upgrade --install {{ .Release.Name }} ./helm/telemetry-db -n {{ .Release.Namespace }}
+     (add --create-namespace only if that namespace does not exist yet)
+
+The migrate Job image is telemetry-db:latest (same as docker.io/library/telemetry-db:latest). Defaults use pullPolicy Never so kind uses the image you loaded.
+
+Flat manifests (no Helm install): helm template {{ .Release.Name }} ./helm/telemetry-db -n {{ .Release.Namespace }} > manifests.yaml
